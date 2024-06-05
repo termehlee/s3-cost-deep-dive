@@ -1,0 +1,84 @@
+[[pages]]
+path = "s3_cost_sim/Home.py"
+name = "Home: S3 Cost Deep Dive"
+icon = "🪣"
+
+[[pages]]
+path = "s3_cost_sim/pages/basics.py"
+name = "Basics: S3 Cost Dimensions"
+icon = "📊"
+
+[[pages]]
+name = "Scenario #1: Backup to Cloud"
+icon = "☁️"
+is_section = true
+
+[[pages]]
+path = "s3_cost_sim/pages/backup_to_cloud/home.py"
+name = "Introduction"
+icon = "1️⃣"
+in_section = true
+
+[[pages]]
+path = "s3_cost_sim/pages/backup_to_cloud/configuration.py"
+name = "Backup Ingestion"
+icon = "2️⃣"
+in_section = true
+
+[[pages]]
+name = "Scenario #2: Hybrid Environment"
+icon = "🏢"
+is_section = true
+
+[[pages]]
+path = "s3_cost_sim/pages/hybrid/home.py"
+name = "Introduction"
+icon = "1️⃣"
+in_section = true
+
+
+[[pages]]
+path = "s3_cost_sim/pages/hybrid/backup_archive.py"
+name = "Backup & Archive"
+icon = "2️⃣"
+in_section = true
+
+[[pages]]
+path = "s3_cost_sim/pages/hybrid/restore_retrieve.py"
+name = "Restore & Retrieval"
+icon = "3️⃣"
+in_section = true
+
+[[pages]]
+name = "Data Lake"
+icon = ":🌊:"
+is_section = true
+
+[[pages]]
+path = "s3_cost_sim/pages/data_lake/home.py"
+name = "Introduction"
+icon = "1️⃣"
+in_section = true
+
+[[pages]]
+path = "s3_cost_sim/pages/data_lake/known_access.py"
+name = "Known Data Access Pattern"
+icon = "2️⃣"
+in_section = true
+
+[[pages]]
+path = "s3_cost_sim/pages/data_lake/unknown_access.py"
+name = "Unknown Data Access Pattern"
+icon = "3️⃣"
+in_section = true
+
+[[pages]]
+name = "Special"
+icon = "👾"
+is_section = true
+
+[[pages]]
+path = "s3_cost_sim/pages/special/home.py"
+name = "Special Cases"
+icon = "👽"
+in_section = true
