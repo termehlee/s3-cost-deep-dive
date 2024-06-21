@@ -2,13 +2,13 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px  # interactive charts
 import math
-from st_pages import add_page_title
+from st_pages import add_page_title, add_indentation
 from streamlit_flow import streamlit_flow
 from streamlit_flow.elements import StreamlitFlowNode, StreamlitFlowEdge
 from streamlit_flow.layouts import TreeLayout
 import images
 
-
+add_indentation()
 add_page_title(layout="wide")
 st.markdown("""
             This flow map depicts the basic S3 cost components that this workshop will cover. Overall, there are 5 main components:

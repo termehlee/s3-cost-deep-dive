@@ -8,8 +8,6 @@ import math
 from st_pages import show_pages_from_config, add_page_title, add_indentation
 
 add_indentation()
-# add_page_title(add_icon=False,page_title="Backup to Cloud", page_icon="☁️", layout="wide")
-
 
 # st.set_page_config(page_title="Backup to Cloud", page_icon="☁️", layout="wide")
 st.title("Scenario #1: Backup to Cloud")

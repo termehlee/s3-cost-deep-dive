@@ -1,5 +1,6 @@
 import boto3
 import json
+from collections import OrderedDict
 
 region_code = {
     'us-east-1': 'USE1', # US East (N. Virginia)
@@ -42,14 +43,36 @@ s3_volume_types = {
     'GLACIER_IR': 'Glacier Instant Retrieval'
 }
 
+# OrderedDict for lifecycle config
 s3_storage_classes = {
     'S3 Standard': 'STANDARD',
     'S3 Standard - Infrequent Access': 'STANDARD_IA',
-    'S3 One Zone - Infrequent Access': 'ONEZONE_IA',
     'S3 Intelligent-Tiering': 'INTELLIGENT_TIERING',
+    'S3 One Zone - Infrequent Access': 'ONEZONE_IA',
+    'S3 Glacier Instant Retrieval': 'GLACIER_IR',
+    'S3 Glacier Flexible Retrieval': 'GLACIER',
+    'S3 Glacier Deep Archive': 'DEEP_ARCHIVE',
+}
+
+s3_storage_classes_excl_int = {
+    'S3 Standard': 'STANDARD',
+    'S3 Standard - Infrequent Access': 'STANDARD_IA',
+    'S3 One Zone - Infrequent Access': 'ONEZONE_IA',
     'S3 Glacier Flexible Retrieval': 'GLACIER',
     'S3 Glacier Deep Archive': 'DEEP_ARCHIVE',
     'S3 Glacier Instant Retrieval': 'GLACIER_IR'
+}
+
+s3_storage_classes_waterfall = {
+    'S3 Standard': ['S3 Standard - Infrequent Access', 'S3 Intelligent-Tiering', 'S3 One Zone - Infrequent Access', 
+                    'S3 Glacier Instant Retrieval', 'S3 Glacier Flexible Retrieval', 'S3 Glacier Deep Archive'],
+    'S3 Standard - Infrequent Access': ['S3 Intelligent-Tiering', 'S3 One Zone - Infrequent Access', 
+                       'S3 Glacier Instant Retrieval', 'S3 Glacier Flexible Retrieval', 'S3 Glacier Deep Archive'],
+    'S3 Intelligent-Tiering': ['S3 One Zone - Infrequent Access', 'S3 Glacier Instant Retrieval', 'S3 Glacier Flexible Retrieval', 'S3 Glacier Deep Archive'],
+    'S3 One Zone - Infrequent Access': ['S3 Glacier Flexible Retrieval', 'S3 Glacier Deep Archive'],
+    'S3 Glacier Instant Retrieval': ['S3 Glacier Flexible Retrieval', 'S3 Glacier Deep Archive'],
+    'S3 Glacier Flexible Retrieval': ['S3 Glacier Deep Archive'],
+    'S3 Glacier Deep Archive': []
 }
 
 s3_req_filters = {
@@ -76,6 +99,9 @@ s3_req_filters = {
         },
         'retrieval': {
             'group': 'S3-API-SIA-Retrieval'
+        },
+        'transition': {
+            'operation': 'S3-SIATransition'
         }
     },
     'ONEZONE_IA': {
@@ -90,6 +116,9 @@ s3_req_filters = {
         },
         'retrieval': {
             'group': 'S3-API-ZIA-Retrieval'
+        },
+        'transition': {
+            'operation': 'S3-ZIATransition'
         }
     },
     'INTELLIGENT_TIERING': {
@@ -101,6 +130,9 @@ s3_req_filters = {
         },
         'GET': {
             'group': 'S3-API-INT-Tier2'
+        },
+        'transition': {
+            'operation': 'S3-INTTransition'
         }
     },
     'GLACIER': {
@@ -112,15 +144,18 @@ s3_req_filters = {
             'usageType': 'TimedStorage-GlacierByteHrs'
         },
         'GET': {
-            'group': 'S3-API-GLACIER-Tier2'
+            'group': 'S3-API-Tier2'
         },
         'retrieval': {
             'feeCode': 'S3-Standard-Retrieval',
             'operation': 'RestoreObject'
         },
-        'retrievalreq': {
+        'retrievalReq': {
             'group': 'S3-API-Tier3',
             'operation': 'RestoreObject'
+        },
+        'transition': {
+            'operation': 'S3-GlacierTransition'
         }
     },
     'GLACIER_IR': {
@@ -135,6 +170,9 @@ s3_req_filters = {
         },
         'retrieval': {
             'group': 'S3-API-GIR-Retrieval'
+        },
+        'transition': {
+            'operation': 'S3-GIRTransition'
         }
     },
     'DEEP_ARCHIVE': {
@@ -146,7 +184,7 @@ s3_req_filters = {
             'usageType': 'TimedStorage-INT-DAA-ByteHrs'
         },
         'GET': {
-            'group': 'S3-API-GDA-Tier2'
+            'group': 'S3-API-Tier2'
         },
         'retrieval': {
             'feeCode': 'S3-Standard-Retrieval',
@@ -155,6 +193,9 @@ s3_req_filters = {
         'retrievalReq': {
             'group': 'S3-API-Tier3',
             'operation': 'RestoreObject' # need to figure out what this is 
+        },
+        'transition': {
+            'operation': 'S3-GDATransition'
         }
     }
 }
@@ -208,34 +249,53 @@ def get_s3_storage_cost(storage_class, region):
     storage_cost = get_s3_pricing(filter)
     return storage_cost
 
+# Function to retrieve storage pricing
+def get_s3_int_storage_cost(storage_class, region):
+    filter = [{'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': region}]
+    prefix = ""
+    if region != 'us-east-1':
+        prefix = region_code[region] + "-"
+    for field, value in s3_req_filters[storage_class]['storage'].items():
+        filter = add_pricing_filter(filter, field, prefix+value)
+    storage_cost = get_s3_pricing(filter)
+    return storage_cost
+
 # Function to retrieve get cost
 def get_s3_get_cost(storage_class, region):
     filter = [{'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': region}]
     for field, value in s3_req_filters[storage_class]['GET'].items():
         filter = add_pricing_filter(filter, field, value)
-    get_cost = get_s3_pricing(filter)
+    get_cost = get_s3_pricing(filter) * 1000
     return get_cost
 
 # Function to retrieve retrieval gb cost
 def get_s3_retrieval_cost(storage_class, region):
     filter = [{'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': region}]
-    if 'retrievalReq' in s3_req_filters.get(storage_class, {}):
+    if 'retrieval' in s3_req_filters.get(storage_class, {}):
+        print(s3_req_filters[storage_class]['retrieval'].items())
         for field, value in s3_req_filters[storage_class]['retrieval'].items():
             filter = add_pricing_filter(filter, field, value)
+        print(filter)
         retrieval_cost = get_s3_pricing(filter)
     else:
-        retrieval_cost = 0
+        retrieval_cost = float(0.00)
     return retrieval_cost
 
-# Function to retrieve retrieval cost
+# Function to retrieve retrieval cost for 1000 requests
 def get_s3_retrieval_req_cost(storage_class, region):
     filter = [{'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': region}]
     if 'retrievalReq' in s3_req_filters.get(storage_class, {}):
         for field, value in s3_req_filters[storage_class]['retrievalReq'].items():
             filter = add_pricing_filter(filter, field, value)
-        retrieval_req_cost = get_s3_pricing(filter)
-        if storage_class == 'GLACIER':
-            retrieval_req_cost *= 2
+        retrieval_req_cost = get_s3_pricing(filter) * 1000
     else :
-        retrieval_req_cost = 0
+        retrieval_req_cost = float(0.00)
     return retrieval_req_cost
+
+# Function to retrieve transition cost for 1000 requests
+def get_s3_transition_cost(storage_class, region):
+    filter = [{'Type': 'TERM_MATCH', 'Field': 'regionCode', 'Value': region}]
+    for field, value in s3_req_filters[storage_class]['transition'].items():
+        filter = add_pricing_filter(filter, field, value)
+    storage_cost = get_s3_pricing(filter) * 1000
+    return storage_cost

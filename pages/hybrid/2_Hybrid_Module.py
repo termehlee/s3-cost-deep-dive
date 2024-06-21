@@ -215,6 +215,8 @@ def retrieval_components():
 from st_pages import show_pages_from_config, add_page_title
 
 add_page_title()
+add_indentation()
+
 
 # show_pages_from_config()
 # st.set_page_config(page_title="Hybrid Cloud", page_icon="☁️", layout="wide")
