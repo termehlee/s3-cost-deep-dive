@@ -3,6 +3,6 @@ numpy==1.24.1
 pandas==2.2.2
 plotly==5.22.0
 st_pages==0.4.5
-streamlit==1.36.0
-streamlit_flow==0.1.0
+streamlit==1.35.0
+streamlit_flow_component==0.1.0
 streamlit_shadcn_ui==0.1.18
